@@ -5,6 +5,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.VertexAttributes.Usage;
+import com.badlogic.gdx.graphics.g3d.*;
 import com.badlogic.gdx.graphics.g3d.Material;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
@@ -146,6 +147,10 @@ public class Player {
     // Helper linear interpolation function for floats
     private float lerp(float start, float end, float alpha) {
         return start + (end - start) * Math.min(1f, Math.max(0f, alpha));
+    }
+
+    public void render(ModelBatch batch, Environment env) {
+        batch.render(instance, env);
     }
 
     public void dispose() {

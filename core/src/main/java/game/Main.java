@@ -8,12 +8,13 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.VertexAttributes.Usage;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.Material;
-import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
+
+import java.util.ArrayList;
 
 public class Main extends ApplicationAdapter {
 
@@ -21,13 +22,9 @@ public class Main extends ApplicationAdapter {
     private ModelBatch modelBatch;
     private Environment environment;
 
-    private Model floorModel;
-    private Model crateModel;
-    private ModelInstance floorInstance;
-    private ModelInstance crateInstance;
-
-    // Bring in our new Player object!
+    private ArrayList<GameObject> gameObjects;
     private Player player;
+
 
     @Override
     public void create() {
@@ -48,26 +45,17 @@ public class Main extends ApplicationAdapter {
         camera.far = 300f;
         camera.update();
 
-        ModelBuilder modelBuilder = new ModelBuilder();
-
-        // Floor Platform
-        floorModel = modelBuilder.createBox(
-            12f, 1f, 12f,
-            new Material(ColorAttribute.createDiffuse(Color.LIGHT_GRAY)),
-            Usage.Position | Usage.Normal
-        );
-        floorInstance = new ModelInstance(floorModel, 0f, -0.5f, 0f);
-
-        // Crate Block
-        crateModel = modelBuilder.createBox(
-            1.2f, 1.2f, 1.2f,
-            new Material(ColorAttribute.createDiffuse(Color.CORAL)),
-            Usage.Position | Usage.Normal
-        );
-        crateInstance = new ModelInstance(crateModel, -3f, 0.6f, -3f);
-
-        // Initialize our player object
+        // Initialize objects
         player = new Player();
+
+        gameObjects = new ArrayList<>();
+
+        gameObjects.add(new Floor(0f, -0.5f, 0f, 12f, 12f));
+        gameObjects.add(new Floor(12f, -0.5f, 0f, 12f, 12f));
+        gameObjects.add(new Floor(0f, -0.5f, 12f, 12f, 12f));
+
+        gameObjects.add(new Crate(-3f, 0.6f, -3f));
+        gameObjects.add(new Crate(2f, 0.6f, 4f));
     }
 
     // GAME LOOP
@@ -77,21 +65,30 @@ public class Main extends ApplicationAdapter {
         Gdx.gl.glClearColor(0.15f, 0.18f, 0.25f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
 
-        // Pass the camera here!
+        // Update player logic
         player.update(Gdx.graphics.getDeltaTime(), camera);
 
         modelBatch.begin(camera);
-        modelBatch.render(floorInstance, environment);
-        modelBatch.render(crateInstance, environment);
-        modelBatch.render(player.instance, environment);
+
+        // render objs
+        for (GameObject obj : gameObjects) {
+            obj.render(modelBatch, environment);
+        }
+
+        // render player
+        player.render(modelBatch, environment);
+
         modelBatch.end();
     }
 
     @Override
     public void dispose() {
         modelBatch.dispose();
-        floorModel.dispose();
-        crateModel.dispose();
-        player.dispose(); // Clean up player memory too
+        player.dispose();
+
+        // Clean up memory for all floors and crates!
+        for (GameObject obj : gameObjects) {
+            obj.dispose();
+        }
     }
 }
