@@ -5,185 +5,253 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.VertexAttributes.Usage;
-import com.badlogic.gdx.graphics.g3d.*;
+import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.Material;
 import com.badlogic.gdx.graphics.g3d.Model;
+import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
 
 import java.util.ArrayList;
-import java.util.DoubleSummaryStatistics;
 
 public class Player {
-    public Vector3 position;
-    public Vector3 velocity;
+    public final Vector3 position = new Vector3();
+    public final Vector3 velocity = new Vector3();
     public Model model;
     public ModelInstance instance;
 
-    public BoundingBox bounds;
+    // bounding box caching
+    private final BoundingBox baseBounds = new BoundingBox();
+    public final BoundingBox bounds = new BoundingBox();
 
-    // Movement tuning
+    private float width = 1.5f;
+    private float height = 2f;
+    private float depth = 1.5f;
+    private float skin = 0.001f; // Padding to prevent floating-point wall sticking
+
+    // movement tuning
     private float maxSpeed = 6f;
-    private float acceleration = 6f;
-    private float deceleration = 12f;
+    private float acceleration = 12f;
+    private float deceleration = 24f;
 
-    // Jump tuning
+    // jump tuning
     private float gravity = -25f;
     private float jumpForce = 10f;
-    private float groundLevel = 1f; // The Y coordinate of our floor
 
-    // Dash tuning
-    private int dashCount = 2;
-    private float dashCooldown = 2f;
+    // dash tuning
+    private int maxDashes = 2;
+    private int dashCount = maxDashes;
+    private float dashCooldownTimer = 0f;
+    private float dashCooldownDuration = 2f;
 
     private boolean isDashing = false;
     private float dashTimer = 0f;
-    private float dashDuration = 0.05f; // How long the dash lasts
+    private float dashDuration = 0.05f;
     private float dashSpeed = 50f;
-    private Vector3 dashDir = new Vector3();
+    private final Vector3 dashDir = new Vector3();
+
+    // directional vectors
+    // INTUITION ALIGNED
+    private final Vector3 vectorUp = new Vector3(-1f, 0f, -1f).nor();
+    private final Vector3 vectorDown = new Vector3(1f, 0f, 1f).nor();
+    private final Vector3 vectorLeft = new Vector3(-1f, 0f, 1f).nor();
+    private final Vector3 vectorRight = new Vector3(1f, 0f, -1f).nor();
+
+    // GRID ALIGNED
+//    private final Vector3 vectorUp = new Vector3(0, 0f, -1f).nor();
+//    private final Vector3 vectorDown = new Vector3(0, 0f, 1f).nor();
+//    private final Vector3 vectorLeft = new Vector3(-1f, 0f, 0).nor();
+//    private final Vector3 vectorRight = new Vector3(1f, 0f, 0).nor();
+
+    private final Vector3 inputDir = new Vector3();
+    private final Vector3 targetVelocity = new Vector3();
+
+    private final Vector3 tmpObjectCenter = new Vector3(); // object center calculations
+
+    // camera offset relative to player
+    private final Vector3 cameraOffset = new Vector3(20f, 20f, 20f);
 
     public Player() {
-        position = new Vector3(0f, groundLevel, 0f);
-        velocity = new Vector3(0f, 0f, 0f);
+        position.set(0f, 1f, 0f);
+        velocity.setZero();
 
         ModelBuilder modelBuilder = new ModelBuilder();
         model = modelBuilder.createBox(
-            1.5f, 2f, 1.5f,
+            width, height, depth,
             new Material(ColorAttribute.createDiffuse(Color.ROYAL)),
             Usage.Position | Usage.Normal
         );
 
-        instance = new ModelInstance(model, position.x, position.y, position.z);
-
-        bounds = new BoundingBox();
-        instance.calculateBoundingBox(bounds);
-        bounds.mul(instance.transform);
+        instance = new ModelInstance(model, position);
+        model.calculateBoundingBox(baseBounds);
+        updateBounds();
     }
 
-    public void update(float delta, OrthographicCamera camera, ArrayList<GameObject> gameObjects, ArrayList<Floor> floors) {
+    public void update(float delta, OrthographicCamera camera, ArrayList<GameObject> gameObjects) {
 
-        if (dashCount < 2) {
-            dashCooldown -= delta;
-            if (dashCooldown <= 0) {
+        // ground check
+        boolean grounded = checkGrounded(gameObjects);
+
+        // dash cooldown recovery
+        if (dashCount < maxDashes) {
+            dashCooldownTimer -= delta;
+            if (dashCooldownTimer <= 0) {
                 dashCount++;
-                dashCooldown = 2f;
-                System.out.println("dashes: " + dashCount);
+                dashCooldownTimer = dashCooldownDuration;
             }
         }
 
-        boolean grounded = false;
-
-        // check if grounded
-        for (Floor floor : floors) {
-            if (bounds.intersects(floor.getBounds())) {
-                grounded = true;
-                break;
-            }
-        }
-
-        // HANDLE DASHING STATE
+        // input states
         if (isDashing) {
             dashTimer -= delta;
-            // set dash velocity in locked direction
-            velocity.set(dashDir.x * dashSpeed, velocity.y, dashDir.z * dashSpeed);
+            velocity.x = dashDir.x * dashSpeed;
+            velocity.z = dashDir.z * dashSpeed;
 
             if (dashTimer <= 0) {
                 isDashing = false; // dash finished
             }
         } else {
-            // input xz direction
-            Vector3 inputDir = new Vector3();
-
-            Vector3 vectorUp = new Vector3(-1f, 0f, -1f).nor();
-            Vector3 vectorDown = new Vector3(1f, 0f, 1f).nor();
-            Vector3 vectorLeft = new Vector3(-1f, 0f, 1f).nor();
-            Vector3 vectorRight = new Vector3(1f, 0f, -1f).nor();
+            inputDir.setZero();
 
             if (Gdx.input.isKeyPressed(Input.Keys.W)) inputDir.add(vectorUp);
             if (Gdx.input.isKeyPressed(Input.Keys.S)) inputDir.add(vectorDown);
             if (Gdx.input.isKeyPressed(Input.Keys.A)) inputDir.add(vectorLeft);
             if (Gdx.input.isKeyPressed(Input.Keys.D)) inputDir.add(vectorRight);
 
-            // dash (if moving and grounded AND has dash)
-            if (Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT) && !inputDir.isZero() && grounded && dashCount > 0) {
+            if (!inputDir.isZero()) {
+                inputDir.nor();
+            }
+
+            // dash
+            if (Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT) && !inputDir.isZero() && dashCount > 0) {
                 isDashing = true;
                 dashCount--;
+                dashCooldownTimer = dashCooldownDuration;
                 dashTimer = dashDuration;
-                dashDir.set(inputDir.nor());
-                System.out.println("dashes: " + dashCount);
+                dashDir.set(inputDir);
             }
 
-            // jump if grounded
+            // jump
             if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && grounded) {
                 velocity.y = jumpForce;
+                grounded = false;
             }
 
-            // xz movement
+            // exponential velocity smoothing
             if (!inputDir.isZero()) {
-                // accelerate
-                inputDir.nor();
-                Vector3 targetVelocity = new Vector3(inputDir).scl(maxSpeed);
-                velocity.x = lerp(velocity.x, targetVelocity.x, acceleration * delta);
-                velocity.z = lerp(velocity.z, targetVelocity.z, acceleration * delta);
+                targetVelocity.set(inputDir).scl(maxSpeed);
+                float alpha = 1f - (float) Math.exp(-acceleration * delta);
+                velocity.x = MathUtils.lerp(velocity.x, targetVelocity.x, alpha);
+                velocity.z = MathUtils.lerp(velocity.z, targetVelocity.z, alpha);
             } else {
-                // decelerate
-                velocity.x = lerp(velocity.x, 0, deceleration * delta);
-                velocity.z = lerp(velocity.z, 0, deceleration * delta);
+                float alpha = 1f - (float) Math.exp(-deceleration * delta);
+                velocity.x = MathUtils.lerp(velocity.x, 0f, alpha);
+                velocity.z = MathUtils.lerp(velocity.z, 0f, alpha);
             }
         }
 
-        // apply gravity or not)
-        if (!grounded || velocity.y > 0) {
+        // gravity
+        if (!grounded) {
             velocity.y += gravity * delta;
-        } else {
-            velocity.y = 0;
         }
 
-        // position update
-        position.mulAdd(velocity, delta);
+        // y axis
+        position.y += velocity.y * delta;
+        updateBounds();
 
-        // hitbox update
-        instance.transform.setTranslation(position);
-        instance.calculateBoundingBox(bounds);
-        bounds.mul(instance.transform);
+        for (GameObject obj : gameObjects) {
+            if (bounds.intersects(obj.getBounds())) {
+                obj.getBounds().getCenter(tmpObjectCenter);
+                if (position.y > tmpObjectCenter.y) {
+                    // Landed on floor / top of object
+                    position.y = obj.getBounds().max.y + (height / 2f) + skin;
+                    velocity.y = 0f;
+                } else {
+                    // Hit ceiling / bottom of object
+                    position.y = obj.getBounds().min.y - (height / 2f) - skin;
+                    velocity.y = 0f;
+                }
+                updateBounds();
+                break;
+            }
+        }
 
-//        // --- COLLISIONS ---
-//        for (GameObject obj : gameObjects) {
-//            // Check if player's bounding box intersects any world object (like crates)
-//            if (bounds.intersects(obj.getBounds())) {
-//                // Simple collision response: push player back out based on velocity or stop movement
-//                // For now, let's keep it simple: revert the movement if we hit something solid
-//                position.mulAdd(velocity, -delta);
-//                velocity.set(0, velocity.y, 0); // Stop horizontal movement on hit
-//                instance.transform.setTranslation(position);
-//                bounds.mul(instance.transform);
-//            }
-//        }
+        // x axis
+        position.x += velocity.x * delta;
+        updateBounds();
 
-        // --- CAMERA FOLLOW ---
-        float offsetX = 20f;
-        float offsetY = 20f;
-        float offsetZ = 20f;
+        for (GameObject obj : gameObjects) {
+            if (bounds.intersects(obj.getBounds())) {
+                obj.getBounds().getCenter(tmpObjectCenter);
+                if (position.x < tmpObjectCenter.x) {
+                    // Collided with left side
+                    position.x = obj.getBounds().min.x - (width / 2f) - skin;
+                } else {
+                    // Collided with right side
+                    position.x = obj.getBounds().max.x + (width / 2f) + skin;
+                }
+                velocity.x = 0f;
+                updateBounds();
+                break;
+            }
+        }
 
-        camera.position.set(
-            position.x + offsetX,
-            position.y + offsetY,
-            position.z + offsetZ
-        );
+        // z axis
+        position.z += velocity.z * delta;
+        updateBounds();
+
+        for (GameObject obj : gameObjects) {
+            if (bounds.intersects(obj.getBounds())) {
+                obj.getBounds().getCenter(tmpObjectCenter);
+                if (position.z < tmpObjectCenter.z) {
+                    // collided with front side
+                    position.z = obj.getBounds().min.z - (depth / 2f) - skin;
+                } else {
+                    // collided with back side
+                    position.z = obj.getBounds().max.z + (depth / 2f) + skin;
+                }
+                velocity.z = 0f;
+                updateBounds();
+                break;
+            }
+        }
+
+        // camera
+        camera.position.set(position).add(cameraOffset);
         camera.lookAt(position);
         camera.update();
     }
 
-    // Helper linear interpolation function for floats
-    private float lerp(float start, float end, float alpha) {
-        return start + (end - start) * Math.min(1f, Math.max(0f, alpha));
+    private boolean checkGrounded(ArrayList<GameObject> gameObjects) {
+        float probeDistance = 0.02f;
+        position.y -= probeDistance;
+        updateBounds();
+
+        boolean onGround = false;
+        for (GameObject obj : gameObjects) {
+            if (bounds.intersects(obj.getBounds())) {
+                onGround = true;
+                break;
+            }
+        }
+
+        position.y += probeDistance;
+        updateBounds();
+
+        return onGround;
     }
 
     public BoundingBox getBounds() {
         return bounds;
+    }
+
+    private void updateBounds() {
+        instance.transform.setTranslation(position);
+        bounds.set(baseBounds).mul(instance.transform);
     }
 
     public void render(ModelBatch batch, Environment env) {

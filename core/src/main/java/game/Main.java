@@ -23,7 +23,6 @@ public class Main extends ApplicationAdapter {
     private Environment environment;
 
     private ArrayList<GameObject> gameObjects;
-    private ArrayList<Floor> floors;
     private Player player;
 
 
@@ -50,11 +49,10 @@ public class Main extends ApplicationAdapter {
         player = new Player();
 
         gameObjects = new ArrayList<>();
-        floors = new ArrayList<>();
 
-        floors.add(new Floor(0f, -0.5f, 0f, 12f, 12f));
-        floors.add(new Floor(12f, -0.5f, 0f, 12f, 12f));
-        floors.add(new Floor(0f, -0.5f, 12f, 12f, 12f));
+        gameObjects.add(new Floor(0f, -0.5f, 0f, 12f, 12f));
+        gameObjects.add(new Floor(12f, -0.5f, 0f, 12f, 12f));
+        gameObjects.add(new Floor(0f, -0.5f, 12f, 12f, 12f));
 
         gameObjects.add(new Crate(-3f, 0.6f, -3f));
         gameObjects.add(new Crate(2f, 0.6f, 4f));
@@ -68,17 +66,13 @@ public class Main extends ApplicationAdapter {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
 
         // Update player logic
-        player.update(Gdx.graphics.getDeltaTime(), camera, gameObjects, floors);
+        player.update(Gdx.graphics.getDeltaTime(), camera, gameObjects);
 
         modelBatch.begin(camera);
 
         // render objs
         for (GameObject obj : gameObjects) {
             obj.render(modelBatch, environment);
-        }
-
-        for (Floor floor : floors) {
-            floor.render(modelBatch, environment);
         }
 
         // render player
@@ -95,10 +89,6 @@ public class Main extends ApplicationAdapter {
         // Clean up memory for all floors and crates!
         for (GameObject obj : gameObjects) {
             obj.dispose();
-        }
-
-        for (Floor floor : floors) {
-            floor.dispose();
         }
     }
 }
