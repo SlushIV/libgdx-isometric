@@ -12,9 +12,12 @@ import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
+import com.badlogic.gdx.math.Intersector;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
+import com.badlogic.gdx.math.Plane;
+import com.badlogic.gdx.math.collision.Ray;
 
 import java.util.ArrayList;
 
@@ -54,6 +57,13 @@ public class Player {
     private float dashSpeed = 50f;
     private final Vector3 dashDir = new Vector3();
 
+    // --- Add these persistent fields at the top of Player.java ---
+    private final Ray mouseRay = new Ray();
+    private final Plane groundPlane = new Plane(new Vector3(0, 1, 0), 0);
+    private final Vector3 mouseWorldPos = new Vector3();
+    private final Vector3 shootDirection = new Vector3();
+    private final Vector3 planeNormal = new Vector3(0, 1, 0);
+
     // directional vectors
     // INTUITION ALIGNED
     private final Vector3 vectorUp = new Vector3(-1f, 0f, -1f).nor();
@@ -91,10 +101,10 @@ public class Player {
         updateBounds();
     }
 
-    public void update(float delta, OrthographicCamera camera, ArrayList<GameObject> gameObjects) {
+    public void update(float delta, OrthographicCamera camera, ArrayList<StaticGameObject> staticGameObjects, ArrayList<Bullet> playerBullets) {
 
         // ground check
-        boolean grounded = checkGrounded(gameObjects);
+        boolean grounded = checkGrounded(staticGameObjects);
 
         // dash cooldown recovery
         if (dashCount < maxDashes) {
@@ -141,6 +151,13 @@ public class Player {
                 grounded = false;
             }
 
+            // shoot
+            if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+                // calculate 3D mouse location (bullet dest)
+                Vector3 targetPoint = getMouseWorldPosition(camera);
+                playerBullets.add(new Bullet(position, targetPoint));
+            }
+
             // exponential velocity smoothing
             if (!inputDir.isZero()) {
                 targetVelocity.set(inputDir).scl(maxSpeed);
@@ -163,7 +180,7 @@ public class Player {
         position.y += velocity.y * delta;
         updateBounds();
 
-        for (GameObject obj : gameObjects) {
+        for (StaticGameObject obj : staticGameObjects) {
             if (bounds.intersects(obj.getBounds())) {
                 obj.getBounds().getCenter(tmpObjectCenter);
                 if (position.y > tmpObjectCenter.y) {
@@ -184,7 +201,7 @@ public class Player {
         position.x += velocity.x * delta;
         updateBounds();
 
-        for (GameObject obj : gameObjects) {
+        for (StaticGameObject obj : staticGameObjects) {
             if (bounds.intersects(obj.getBounds())) {
                 obj.getBounds().getCenter(tmpObjectCenter);
                 if (position.x < tmpObjectCenter.x) {
@@ -204,7 +221,7 @@ public class Player {
         position.z += velocity.z * delta;
         updateBounds();
 
-        for (GameObject obj : gameObjects) {
+        for (StaticGameObject obj : staticGameObjects) {
             if (bounds.intersects(obj.getBounds())) {
                 obj.getBounds().getCenter(tmpObjectCenter);
                 if (position.z < tmpObjectCenter.z) {
@@ -226,13 +243,32 @@ public class Player {
         camera.update();
     }
 
-    private boolean checkGrounded(ArrayList<GameObject> gameObjects) {
+    /**
+     * Converts 2D mouse screen coordinates into a 3D world position (X, Y, Z)
+     * on a horizontal plane matching the player's current height.
+     */
+    public Vector3 getMouseWorldPosition(OrthographicCamera camera) {
+        // cast ray from camera through mouse cursor position
+        mouseRay.set(camera.getPickRay(Gdx.input.getX(), Gdx.input.getY()));
+
+        // set horizontal plane height equal to player's current Y height
+        groundPlane.set(position, planeNormal);
+
+        // find 3D intersection coordinate
+        if (Intersector.intersectRayPlane(mouseRay, groundPlane, mouseWorldPos)) {
+            return mouseWorldPos;
+        }
+
+        return position; // fallback
+    }
+
+    private boolean checkGrounded(ArrayList<StaticGameObject> staticGameObjects) {
         float probeDistance = 0.02f;
         position.y -= probeDistance;
         updateBounds();
 
         boolean onGround = false;
-        for (GameObject obj : gameObjects) {
+        for (StaticGameObject obj : staticGameObjects) {
             if (bounds.intersects(obj.getBounds())) {
                 onGround = true;
                 break;

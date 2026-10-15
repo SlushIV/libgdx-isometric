@@ -7,7 +7,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.collision.BoundingBox;
 
-public class Crate implements GameObject {
+public class Crate implements StaticGameObject {
 
     public Model model;
     public ModelInstance instance;
@@ -26,7 +26,7 @@ public class Crate implements GameObject {
 
         instance = new ModelInstance(model, x, y, z);
 
-        // Calculate world-space bounding box for collision
+        // calculate world-space bounding box for collision
         bounds = new BoundingBox();
         instance.calculateBoundingBox(bounds);
         bounds.mul(instance.transform);

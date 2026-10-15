@@ -7,7 +7,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.collision.BoundingBox;
 
-public class Floor implements GameObject {
+public class Floor implements StaticGameObject {
     public Model model;
     public ModelInstance instance;
     public BoundingBox bounds;
