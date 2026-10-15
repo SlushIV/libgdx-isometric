@@ -18,7 +18,9 @@ import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.math.Plane;
 import com.badlogic.gdx.math.collision.Ray;
+import com.badlogic.gdx.utils.Disposable;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 
 public class Player {
@@ -57,11 +59,13 @@ public class Player {
     private float dashSpeed = 50f;
     private final Vector3 dashDir = new Vector3();
 
-    // --- Add these persistent fields at the top of Player.java ---
+    // bullet tuning
+    private ArrayList<Bullet> bullets = new ArrayList<>();
+
+    // this is for calculating the mouse coords in the isometric world
     private final Ray mouseRay = new Ray();
     private final Plane groundPlane = new Plane(new Vector3(0, 1, 0), 0);
     private final Vector3 mouseWorldPos = new Vector3();
-    private final Vector3 shootDirection = new Vector3();
     private final Vector3 planeNormal = new Vector3(0, 1, 0);
 
     // directional vectors
@@ -101,10 +105,18 @@ public class Player {
         updateBounds();
     }
 
-    public void update(float delta, OrthographicCamera camera, ArrayList<StaticGameObject> staticGameObjects, ArrayList<Bullet> playerBullets) {
+    public void update(float delta, OrthographicCamera camera, ObjectManager objectManager) {
 
         // ground check
-        boolean grounded = checkGrounded(staticGameObjects);
+        boolean grounded = checkGrounded(objectManager.getCollidables());
+
+        // prolly temporary but buller queue handling
+        for (int i = bullets.size() - 1; i >= 0; i--) {
+
+            if (!bullets.get(i).isAlive()) {
+                bullets.remove(i);
+            }
+        }
 
         // dash cooldown recovery
         if (dashCount < maxDashes) {
@@ -155,7 +167,17 @@ public class Player {
             if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
                 // calculate 3D mouse location (bullet dest)
                 Vector3 targetPoint = getMouseWorldPosition(camera);
-                playerBullets.add(new Bullet(position, targetPoint));
+                Bullet bullet = new Bullet(position, targetPoint);
+                objectManager.add(bullet);
+                bullets.add(bullet);
+
+            }
+
+            // turn bullet into platform (please)
+            if (Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
+                if (!bullets.isEmpty()) {
+                    bullets.getLast().turnStatic(objectManager);
+                }
             }
 
             // exponential velocity smoothing
@@ -180,7 +202,7 @@ public class Player {
         position.y += velocity.y * delta;
         updateBounds();
 
-        for (StaticGameObject obj : staticGameObjects) {
+        for (Collidable obj : objectManager.getCollidables()) {
             if (bounds.intersects(obj.getBounds())) {
                 obj.getBounds().getCenter(tmpObjectCenter);
                 if (position.y > tmpObjectCenter.y) {
@@ -201,7 +223,7 @@ public class Player {
         position.x += velocity.x * delta;
         updateBounds();
 
-        for (StaticGameObject obj : staticGameObjects) {
+        for (Collidable obj : objectManager.getCollidables()) {
             if (bounds.intersects(obj.getBounds())) {
                 obj.getBounds().getCenter(tmpObjectCenter);
                 if (position.x < tmpObjectCenter.x) {
@@ -221,7 +243,7 @@ public class Player {
         position.z += velocity.z * delta;
         updateBounds();
 
-        for (StaticGameObject obj : staticGameObjects) {
+        for (Collidable obj : objectManager.getCollidables()) {
             if (bounds.intersects(obj.getBounds())) {
                 obj.getBounds().getCenter(tmpObjectCenter);
                 if (position.z < tmpObjectCenter.z) {
@@ -262,13 +284,13 @@ public class Player {
         return position; // fallback
     }
 
-    private boolean checkGrounded(ArrayList<StaticGameObject> staticGameObjects) {
+    private boolean checkGrounded(ArrayList<Collidable> collidables) {
         float probeDistance = 0.02f;
         position.y -= probeDistance;
         updateBounds();
 
         boolean onGround = false;
-        for (StaticGameObject obj : staticGameObjects) {
+        for (Collidable obj : collidables) {
             if (bounds.intersects(obj.getBounds())) {
                 onGround = true;
                 break;

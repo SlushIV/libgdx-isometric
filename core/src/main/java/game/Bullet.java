@@ -8,10 +8,11 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
+import com.badlogic.gdx.utils.Disposable;
 
 import java.util.ArrayList;
 
-public class Bullet {
+public class Bullet implements Renderable, Updatable {
 
     public Model model;
     public ModelInstance instance;
@@ -44,6 +45,9 @@ public class Bullet {
         direction.set(mousePosition).sub(position);
         direction.nor();
 
+        // change position so bullet does NOT spawn inside player
+        position.set(position.add(direction.scl(1.5f)));
+
         velocity.setZero();
         targetVelocity.set(direction).scl(maxSpeed);
 
@@ -59,7 +63,8 @@ public class Bullet {
         updateBounds();
     }
 
-    public void update(float delta, ArrayList<StaticGameObject> staticGameObjects) {
+    public void update(float delta, ObjectManager objectManager) {
+
         lifetime -= delta;
 
         if (lifetime <= 0) {
@@ -67,7 +72,7 @@ public class Bullet {
             return;
         }
 
-        for (StaticGameObject obj : staticGameObjects) {
+        for (Collidable obj : objectManager.getCollidables()) {
             if (bounds.intersects(obj.getBounds())) {
                 alive = false;
                 return;
@@ -80,6 +85,22 @@ public class Bullet {
         position.x += velocity.x * delta;
         position.z += velocity.z * delta;
         updateBounds();
+
+    }
+
+    public void turnStatic(ObjectManager objectManager) {
+        if (alive) {
+            alive = false;
+
+            // reset orientation to world grid and scale XZ to platform size
+            velocity.setZero();
+            instance.transform.setToTranslation(position);
+            updateBounds();
+
+            // add BulletPlatform to collidables and delete the "real" bullet
+            objectManager.add(new BulletPlatform(position));
+            System.out.println(position.x + " " + position.y + " " + position.z);
+        }
     }
 
     public BoundingBox getBounds() {

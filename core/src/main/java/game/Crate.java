@@ -7,7 +7,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.collision.BoundingBox;
 
-public class Crate implements StaticGameObject {
+public class Crate implements Collidable, Renderable {
 
     public Model model;
     public ModelInstance instance;
