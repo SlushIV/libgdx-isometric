@@ -11,11 +11,23 @@ public class ObjectManager {
     private final ArrayList<Updatable> updatables = new ArrayList<>();
     private final ArrayList<Renderable> renderables = new ArrayList<>();
     private final ArrayList<Collidable> collidables = new ArrayList<>();
+    private final Grid grid;
+
+    public ObjectManager(int width, int height) {
+        grid = new Grid(width, height);
+    }
+
+    public ObjectManager() {
+        grid = new Grid(50, 50);
+    }
 
     public void add(Object entity) {
         if (entity instanceof Updatable u) updatables.add(u);
         if (entity instanceof Renderable r) renderables.add(r);
-        if (entity instanceof Collidable c) collidables.add(c);
+        if (entity instanceof Collidable c) {
+            collidables.add(c);
+            grid.addObstacle(c);
+        }
     }
 
     public void update(float delta, ObjectManager objectManager) {
@@ -27,7 +39,12 @@ public class ObjectManager {
             if (!u.isAlive()) {
                 updatables.remove(i);
                 renderables.remove(u);
-                collidables.remove(u);
+
+                if (u instanceof Collidable c) {
+                    collidables.remove(c);
+                    grid.removeObstacle(c);
+                }
+
                 if (u instanceof Disposable d) d.dispose();
             }
         }
@@ -55,5 +72,13 @@ public class ObjectManager {
 
     public ArrayList<Renderable> getRenderables() {
         return renderables;
+    }
+
+    public Grid getGrid() {
+        return grid;
+    }
+
+    public int[][] getGridArray() {
+        return grid.getGrid();
     }
 }

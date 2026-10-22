@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.VertexAttributes.Usage;
 import com.badlogic.gdx.graphics.g3d.*;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
 
 public class Floor implements Collidable, Renderable {
@@ -12,7 +13,11 @@ public class Floor implements Collidable, Renderable {
     public ModelInstance instance;
     public BoundingBox bounds;
 
+    public final Vector3 position = new Vector3();
+
     public Floor(float x, float y, float z, float width, float depth) {
+        position.set(x, y, z);
+
         ModelBuilder modelBuilder = new ModelBuilder();
         model = modelBuilder.createBox(
             width, 1f, depth,
@@ -20,7 +25,7 @@ public class Floor implements Collidable, Renderable {
             Usage.Position | Usage.Normal
         );
 
-        instance = new ModelInstance(model, x, y, z);
+        instance = new ModelInstance(model, position);
 
         bounds = new BoundingBox();
         instance.calculateBoundingBox(bounds);
@@ -35,6 +40,11 @@ public class Floor implements Collidable, Renderable {
     @Override
     public BoundingBox getBounds() {
         return bounds;
+    }
+
+    @Override
+    public Vector3 getPosition() {
+        return position;
     }
 
     @Override

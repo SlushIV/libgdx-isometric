@@ -18,9 +18,7 @@ import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.math.Plane;
 import com.badlogic.gdx.math.collision.Ray;
-import com.badlogic.gdx.utils.Disposable;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 
 public class Player {
@@ -38,6 +36,14 @@ public class Player {
     private float depth = 1.5f;
     private float skin = 0.001f; // Padding to prevent floating-point wall sticking
 
+    // hp tuning
+    private int maxHp = 100;
+    private int currentHp = 67;
+
+    // ammo tuning
+    private int currentAmmo;
+    private int maxAmmo;
+
     // movement tuning
     private float maxSpeed = 6f;
     private float acceleration = 12f;
@@ -50,8 +56,8 @@ public class Player {
     // dash tuning
     private int maxDashes = 2;
     private int dashCount = maxDashes;
-    private float dashCooldownTimer = 0f;
-    private float dashCooldownDuration = 2f;
+    private float currentDashCooldown = 0f;
+    private float maxDashCooldown = 2f;
 
     private boolean isDashing = false;
     private float dashTimer = 0f;
@@ -110,6 +116,12 @@ public class Player {
         // ground check
         boolean grounded = checkGrounded(objectManager.getCollidables());
 
+        // something if player falls too low (rn just spawn again)
+        if (position.y < -50f) {
+            position.set(0f, 1f, 0f);
+            velocity.setZero();
+        }
+
         // prolly temporary but buller queue handling
         for (int i = bullets.size() - 1; i >= 0; i--) {
 
@@ -120,10 +132,10 @@ public class Player {
 
         // dash cooldown recovery
         if (dashCount < maxDashes) {
-            dashCooldownTimer -= delta;
-            if (dashCooldownTimer <= 0) {
+            currentDashCooldown -= delta;
+            if (currentDashCooldown <= 0) {
                 dashCount++;
-                dashCooldownTimer = dashCooldownDuration;
+                currentDashCooldown = maxDashCooldown;
             }
         }
 
@@ -151,9 +163,14 @@ public class Player {
             // dash
             if (Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT) && !inputDir.isZero() && dashCount > 0) {
                 isDashing = true;
+
+                // only reset cooldown if its the first dash otherwise it fucks up the cooldown of the first to recover dash
+                if (dashCount >= maxDashes) {
+                    currentDashCooldown = maxDashCooldown;
+                    dashTimer = dashDuration;
+                }
+
                 dashCount--;
-                dashCooldownTimer = dashCooldownDuration;
-                dashTimer = dashDuration;
                 dashDir.set(inputDir);
             }
 
@@ -318,5 +335,21 @@ public class Player {
 
     public void dispose() {
         model.dispose();
+    }
+
+    public int getDashCount() {
+        return dashCount;
+    }
+
+    public float getDashCooldownRatio() {
+        return currentDashCooldown / maxDashCooldown;
+    } // 0.0f to 1.0f
+
+    public int getCurrentHp() {
+        return currentHp;
+    }
+
+    public int getCurrentAmmo() {
+        return currentAmmo;
     }
 }

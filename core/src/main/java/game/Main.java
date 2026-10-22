@@ -6,11 +6,8 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
-import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
-
-import java.util.ArrayList;
 
 public class Main extends ApplicationAdapter {
 
@@ -19,11 +16,17 @@ public class Main extends ApplicationAdapter {
     private Environment environment;
 
     private final ObjectManager objectManager = new ObjectManager();
+    private HUD hud;
 
     private Player player;
 
+    // DEBUG DEBUG DEBUG
+    private GridDebugRenderer debugRenderer;
+    private boolean showDebugGrid = true;
+
     // zoom manipulation later perhaps? (the larger the zoom the further away)
     public float zoom = 25f;
+    public int score = 0;
 
     @Override
     public void create() {
@@ -45,6 +48,7 @@ public class Main extends ApplicationAdapter {
 
         // initialize objects
         player = new Player();
+        hud = new HUD();
 
         objectManager.add(new Floor(0f, -0.5f, 0f, 12f, 12f));
         objectManager.add(new Floor(12f, -0.5f, 0f, 12f, 12f));
@@ -52,6 +56,9 @@ public class Main extends ApplicationAdapter {
 
         objectManager.add(new Crate(-3f, 0.6f, -3f));
         objectManager.add(new Crate(2f, 0.6f, 4f));
+
+        // DEBUG DEBUG DEBUG
+        debugRenderer = new GridDebugRenderer();
     }
 
     // GAME LOOP
@@ -73,8 +80,23 @@ public class Main extends ApplicationAdapter {
         // render
         player.render(modelBatch, environment);
         objectManager.render(modelBatch, environment);
-
         modelBatch.end();
+
+        // HUD update
+        hud.update(
+            player.getCurrentHp(),
+            player.getDashCount(),
+            player.getDashCooldownRatio(), // 0.0f to 1.0f
+            player.getCurrentAmmo(),
+            score
+        );
+        hud.render();
+
+
+        // DEBUG DEBUG DEBUG
+        if (showDebugGrid) {
+            debugRenderer.render(objectManager.getGrid(), camera);
+        }
     }
 
     @Override
@@ -82,5 +104,9 @@ public class Main extends ApplicationAdapter {
         modelBatch.dispose();
         player.dispose();
         objectManager.dispose();
+        hud.dispose();
+
+        // DEBUG DEBUG DEBUG
+        debugRenderer.dispose();
     }
 }

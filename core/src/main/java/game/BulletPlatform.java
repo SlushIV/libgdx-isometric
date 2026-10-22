@@ -65,6 +65,11 @@ public class BulletPlatform implements Collidable, Renderable, Updatable {
         return bounds;
     }
 
+    @Override
+    public Vector3 getPosition() {
+        return position;
+    }
+
     public boolean isAlive() {
         return alive;
     }
