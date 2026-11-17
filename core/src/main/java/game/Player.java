@@ -45,9 +45,9 @@ public class Player {
     private int maxAmmo;
 
     // movement tuning
-    private float maxSpeed = 6f;
-    private float acceleration = 12f;
-    private float deceleration = 24f;
+    private float maxSpeed = 10f;
+    private float acceleration = 10f;
+    private float deceleration = 25f;
 
     // jump tuning
     private float gravity = -25f;
@@ -322,6 +322,10 @@ public class Player {
 
     public BoundingBox getBounds() {
         return bounds;
+    }
+
+    public Vector3 getPosition() {
+        return position;
     }
 
     private void updateBounds() {

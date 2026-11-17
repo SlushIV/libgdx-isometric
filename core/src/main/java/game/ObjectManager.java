@@ -13,8 +13,8 @@ public class ObjectManager {
     private final ArrayList<Collidable> collidables = new ArrayList<>();
     private final Grid grid;
 
-    public ObjectManager(int width, int height) {
-        grid = new Grid(width, height);
+    public ObjectManager(Grid grid) {
+        this.grid = grid;
     }
 
     public ObjectManager() {

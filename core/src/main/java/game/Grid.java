@@ -110,8 +110,8 @@ public class Grid {
         }
     }
 
-    // array lookup for pathfinding
-    public boolean isWalkable(float x, float z) {
+    // array lookup for walkable (not needed yet)
+    public boolean isWalkable(float x, float z) { // coordinates
         // offset to account for negative coords
         int gridX = (int) Math.floor((x + offsetX) / gridSize); // math.floor handles correct rounding for neg values (only relevant for bullets tbh)
         int gridZ = (int) Math.floor((z + offsetZ) / gridSize); // honestly ts doesnt even need math floor its JUST IN CASE
@@ -121,6 +121,44 @@ public class Grid {
         }
 
         return grid[gridX][gridZ] == 0;
+    }
+
+    // array lookup for walkable (stupid)
+    public boolean isWalkable(int x, int z) { // indices
+        if (x < 0 || x >= width || z < 0 || z >= height) {
+            return false;
+        }
+
+        return grid[x][z] == 0;
+    }
+
+    // array lookup for pathfinding THIS ALWAYS RETURNS A int[2] (or null), int[0] = gridX, int[1] = gridZ
+    public int[] getGridIndices(float x, float z) { // coordinates
+        // offset to account for negative coords
+        int gridX = (int) Math.floor((x + offsetX) / gridSize); // math.floor handles correct rounding for neg values (only relevant for bullets tbh)
+        int gridZ = (int) Math.floor((z + offsetZ) / gridSize); // honestly ts doesnt even need math floor its JUST IN CASE
+
+        // ts should not happen as its only called on objects like in the grid?
+        if (gridX < 0 || gridX >= width || gridZ < 0 || gridZ >= height) {
+            return null;
+        }
+
+        return new int[]{gridX, gridZ};
+    }
+
+    public Vector3 getWorldCoordinates(int x, int z) { // grid indices
+        if (x < 0 || x >= width || z < 0 || z >= height) {
+            return Vector3.Zero; // cant go there but shoudnt really happen if the method is used in a sanitized context
+        }
+
+        Vector3 result = new Vector3();
+
+        // since index = (coordinate + offset) / gridsize
+        // -> coordinate = index * gridsize - offset
+        result.x = (x * gridSize) - offsetX;
+        result.z = (z * gridSize) - offsetZ;
+        result.y = 0f; // dont rlly know how to handle y coords on a plane grid yet idk
+        return result;
     }
 
     public int[][] getGrid() {

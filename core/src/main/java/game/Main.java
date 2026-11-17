@@ -57,6 +57,8 @@ public class Main extends ApplicationAdapter {
         objectManager.add(new Crate(-3f, 0.6f, -3f));
         objectManager.add(new Crate(2f, 0.6f, 4f));
 
+        objectManager.add(new Enemy(20f, 1f, 20f, player));
+
         // DEBUG DEBUG DEBUG
         debugRenderer = new GridDebugRenderer();
     }
